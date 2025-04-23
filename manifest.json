@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Better Limitless",
+  "version": "1.0",
+  "description": "Better Limitless is an open-source tool for enhancing the Limitless tournament platform. Made by the MatuxGG",
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://play.limitlesstcg.com/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "48": "icons/icon.png"
+    }
+  },
+  "icons": {
+    "48": "icons/icon.png",
+    "128": "icons/icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://play.limitlesstcg.com/tournament/*/metagame*"],
+      "js": [
+        "scripts/lib/chart.umd.js",
+        "scripts/lib/chartjs-plugin-datalabels.min.js",
+        "scripts/metaShare.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://play.limitlesstcg.com/decks/*/matchups*"],
+      "js": [
+        "scripts/matchupsTreshold.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://play.limitlesstcg.com/tournaments",
+        "https://play.limitlesstcg.com/tournaments/",
+        "https://play.limitlesstcg.com/tournaments/upcoming*"
+      ],
+      "js": [
+        "scripts/availabilityHighlighter.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

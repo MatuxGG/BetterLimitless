@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Better Limitless</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<div class="header">
+    <img src="../icons/icon.png" alt="Better Limitless" class="logo">
+    <span class="app-name">Better Limitless</span>
+</div>
+<label class="switch">
+    <input type="checkbox" class="module-toggle" data-module="metaShare">
+    <span class="slider"></span>
+    <span class="label-text">Meta share charts</span>
+</label>
+<label class="switch">
+    <input type="checkbox" class="module-toggle" data-module="matchThreshold">
+    <span class="slider"></span>
+    <span class="label-text">Minimum Matches filter</span>
+</label>
+<label class="switch">
+    <input type="checkbox" class="module-toggle" data-module="availabilityHighlighter">
+    <span class="slider"></span>
+    <span class="label-text">Availability highlighter</span>
+</label>
+<div id="availability-container"></div>
+<script src="popup.js"></script>
+</body>
+</html>
