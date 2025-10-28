@@ -204,6 +204,12 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
         // Création du bouton d'analyse
         function createAnalyzeButton() {
+            // Ne pas afficher le bouton si l'URL contient "matchups"
+            if (window.location.href.includes('matchups')) {
+                console.log('[BetterLimitless] Bouton non affiché car l\'URL contient "matchups"');
+                return;
+            }
+
             const buttonContainer = document.createElement('div');
             buttonContainer.style.display = 'flex';
             buttonContainer.style.alignItems = 'center';
@@ -212,7 +218,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
             const button = document.createElement('button');
             button.id = 'analyze-tournaments-btn';
-            button.textContent = 'Analyser les tournois';
+            button.textContent = 'Analyser les decklists';
             button.style.backgroundColor = '#2563eb';
             button.style.color = '#f0f0f0';
             button.style.border = 'none';
