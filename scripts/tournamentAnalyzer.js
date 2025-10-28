@@ -195,8 +195,8 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 const quantities = cardData[cardName];
                 const sortedQtys = Object.keys(quantities).sort((a, b) => parseInt(b) - parseInt(a));
 
-                // Calculer le total d'occurrences pour cette carte
-                const totalOccurrences = sortedQtys.reduce((sum, qty) => sum + quantities[qty], 0);
+                // Calculer le pourcentage global (nombre de tournois avec la carte / total de tournois)
+                const globalPercentage = ((cardTournamentCount[cardName] / totalTournaments) * 100).toFixed(0);
 
                 sortedQtys.forEach((qty, index) => {
                     const count = quantities[qty];
@@ -205,12 +205,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                     html += '<tr style="border-bottom: 1px solid #333;">';
                     if (index === 0) {
-                        // Afficher aussi le pourcentage global (nombre de tournois avec la carte / total de tournois)
-                        const globalPercentage = ((cardTournamentCount[cardName] / totalTournaments) * 100).toFixed(0);
-                        html += `<td style="padding: 8px;" rowspan="${sortedQtys.length}">${cardName} <span style="color: #888; font-size: 0.9em;">(${globalPercentage}% des tournois)</span></td>`;
+                        html += `<td style="padding: 8px;" rowspan="${sortedQtys.length}">${cardName}</td>`;
                     }
                     html += `<td style="text-align: center; padding: 8px;">${qty}</td>`;
-                    html += `<td style="text-align: center; padding: 8px;">${percentage}%</td>`;
+                    html += `<td style="text-align: center; padding: 8px;">${globalPercentage}%</td>`;
                     html += '</tr>';
                 });
             });
