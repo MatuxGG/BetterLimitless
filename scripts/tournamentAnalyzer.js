@@ -157,6 +157,114 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             button.disabled = false;
         }
 
+        // Fonction pour générer une decklist automatique avec les cartes >50%
+        function generateAutoDecklist(cardData, totalDecklists) {
+            const autoDecklist = [];
+
+            // Pour chaque carte, trouver la quantité la plus représentée qui dépasse 50%
+            for (const cardName in cardData) {
+                const quantities = cardData[cardName];
+                let bestQty = null;
+                let bestPercentage = 0;
+
+                // Parcourir toutes les quantités pour cette carte
+                for (const qty in quantities) {
+                    const count = quantities[qty];
+                    const percentage = (count / totalDecklists) * 100;
+
+                    // Garder la quantité avec le pourcentage le plus élevé qui dépasse 50%
+                    if (percentage > 50 && percentage > bestPercentage) {
+                        bestQty = parseInt(qty);
+                        bestPercentage = percentage;
+                    }
+                }
+
+                // Si une quantité dépasse 50%, l'ajouter à la decklist
+                if (bestQty !== null) {
+                    autoDecklist.push({
+                        name: cardName,
+                        quantity: bestQty,
+                        percentage: bestPercentage
+                    });
+                }
+            }
+
+            // Trier par nom de carte
+            autoDecklist.sort((a, b) => a.name.localeCompare(b.name));
+
+            return autoDecklist;
+        }
+
+        // Fonction pour afficher la decklist automatique
+        function displayAutoDecklist(autoDecklist) {
+            let autoDecklistDiv = document.getElementById('auto-decklist');
+
+            if (!autoDecklistDiv) {
+                autoDecklistDiv = document.createElement('div');
+                autoDecklistDiv.id = 'auto-decklist';
+                autoDecklistDiv.style.marginTop = '20px';
+                autoDecklistDiv.style.padding = '15px';
+                autoDecklistDiv.style.backgroundColor = '#1a1a1a';
+                autoDecklistDiv.style.border = '1px solid #444';
+                autoDecklistDiv.style.borderRadius = '4px';
+
+                const resultsDiv = document.getElementById('tournament-results');
+                if (resultsDiv && resultsDiv.parentElement) {
+                    resultsDiv.parentElement.insertBefore(autoDecklistDiv, resultsDiv.nextSibling);
+                }
+            }
+
+            if (autoDecklist.length === 0) {
+                autoDecklistDiv.innerHTML = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Decklist automatique</h3>' +
+                    '<p style="color: #ffa500;">Aucune carte ne dépasse 50% de présence dans les decklists analysées.</p>';
+                return;
+            }
+
+            // Calculer le total de cartes
+            const totalCards = autoDecklist.reduce((sum, card) => sum + card.quantity, 0);
+
+            // Créer le contenu HTML
+            let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Decklist automatique (cartes >50%)</h3>';
+            html += `<p style="color: #aaa; margin-bottom: 10px;">Total: ${totalCards} cartes</p>`;
+
+            // Bouton pour copier la decklist
+            html += '<button id="copy-decklist-btn" style="background-color: #2563eb; color: #f0f0f0; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-bottom: 15px; font-weight: 500;">Copier la decklist</button>';
+            html += '<span id="copy-status" style="margin-left: 10px; color: #44ff44;"></span>';
+
+            html += '<div style="background-color: #0a0a0a; padding: 10px; border-radius: 4px; font-family: monospace; max-height: 400px; overflow-y: auto;">';
+
+            autoDecklist.forEach(card => {
+                html += `<div style="color: #f0f0f0; padding: 4px 0;">${card.quantity} ${card.name} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></div>`;
+            });
+
+            html += '</div>';
+            autoDecklistDiv.innerHTML = html;
+
+            // Ajouter l'événement pour copier la decklist
+            setTimeout(() => {
+                const copyBtn = document.getElementById('copy-decklist-btn');
+                const copyStatus = document.getElementById('copy-status');
+
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', () => {
+                        const decklistText = autoDecklist.map(card => `${card.quantity} ${card.name}`).join('\n');
+
+                        navigator.clipboard.writeText(decklistText).then(() => {
+                            copyStatus.textContent = 'Copié !';
+                            copyStatus.style.color = '#44ff44';
+                            setTimeout(() => {
+                                copyStatus.textContent = '';
+                            }, 2000);
+                        }).catch(err => {
+                            copyStatus.textContent = 'Erreur lors de la copie';
+                            copyStatus.style.color = '#ff4444';
+                            console.error('[BetterLimitless] Erreur lors de la copie:', err);
+                        });
+                    });
+                }
+            }, 0);
+        }
+
         // Fonction pour afficher les résultats
         function displayResults(cardData, cardTournamentCount, totalDecklists) {
             console.log('[BetterLimitless] Affichage des résultats avec les données:', cardData);
@@ -214,6 +322,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
             html += '</tbody></table>';
             resultsDiv.innerHTML = html;
+
+            // Générer et afficher la decklist automatique
+            const autoDecklist = generateAutoDecklist(cardData, totalDecklists);
+            displayAutoDecklist(autoDecklist);
         }
 
         // Création du bouton d'analyse
