@@ -37,6 +37,13 @@
       "run_at": "document_idle"
     },
     {
+      "matches": ["https://play.limitlesstcg.com/decks/*"],
+      "js": [
+        "scripts/tournamentAnalyzer.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
       "matches": [
         "https://play.limitlesstcg.com/tournaments",
         "https://play.limitlesstcg.com/tournaments/",
