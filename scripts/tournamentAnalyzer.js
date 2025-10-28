@@ -19,6 +19,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 const doc = parser.parseFromString(html, 'text/html');
 
                 const cardData = {};
+                const cardsInThisTournament = new Set(); // Pour tracker les cartes uniques de ce tournoi
 
                 // Trouver toutes les div avec la classe "decklist"
                 const decklistDivs = doc.querySelectorAll('.decklist');
@@ -50,6 +51,8 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                             console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty}`);
 
+                            cardsInThisTournament.add(cardName); // Ajouter au Set
+
                             if (!cardData[cardName]) {
                                 cardData[cardName] = {};
                             }
@@ -66,10 +69,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 const totalCards = Object.keys(cardData).length;
                 console.log(`[BetterLimitless] Total de cartes uniques trouvées sur cette page: ${totalCards}`);
                 console.log('[BetterLimitless] Données extraites:', cardData);
-                return cardData;
+                return { cardData, cardsInThisTournament };
             } catch (error) {
                 console.error(`[BetterLimitless] Erreur lors du parsing de ${url}:`, error);
-                return {};
+                return { cardData: {}, cardsInThisTournament: new Set() };
             }
         }
 
@@ -124,18 +127,28 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             statusDiv.textContent = `Analyse de ${tournamentLinks.length} tournoi(s)...`;
 
             const allCardData = {};
+            const cardTournamentCount = {}; // Compte le nombre de tournois où chaque carte apparaît
             let processed = 0;
 
             // Analyser chaque tournoi
             for (const url of tournamentLinks) {
-                const cardData = await parseTournamentPage(url);
-                mergeCardData(allCardData, cardData);
+                const result = await parseTournamentPage(url);
+                mergeCardData(allCardData, result.cardData);
+
+                // Compter les tournois où chaque carte apparaît
+                result.cardsInThisTournament.forEach(cardName => {
+                    if (!cardTournamentCount[cardName]) {
+                        cardTournamentCount[cardName] = 0;
+                    }
+                    cardTournamentCount[cardName]++;
+                });
+
                 processed++;
                 statusDiv.textContent = `Analysé ${processed}/${tournamentLinks.length} tournois...`;
             }
 
             // Afficher les résultats
-            displayResults(allCardData);
+            displayResults(allCardData, cardTournamentCount, tournamentLinks.length);
 
             statusDiv.textContent = `Analyse terminée : ${tournamentLinks.length} tournoi(s) analysé(s)`;
             statusDiv.style.color = '#44ff44';
@@ -143,9 +156,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
         }
 
         // Fonction pour afficher les résultats
-        function displayResults(cardData) {
+        function displayResults(cardData, cardTournamentCount, totalTournaments) {
             console.log('[BetterLimitless] Affichage des résultats avec les données:', cardData);
             console.log('[BetterLimitless] Nombre de cartes à afficher:', Object.keys(cardData).length);
+            console.log('[BetterLimitless] Total de tournois analysés:', totalTournaments);
             // Créer ou récupérer la div de résultats
             let resultsDiv = document.getElementById('tournament-results');
 
@@ -186,11 +200,14 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                 sortedQtys.forEach((qty, index) => {
                     const count = quantities[qty];
-                    const percentage = ((count / totalOccurrences) * 100).toFixed(0);
+                    // Calculer le pourcentage par rapport au nombre de tournois où la carte apparaît
+                    const percentage = ((count / cardTournamentCount[cardName]) * 100).toFixed(0);
 
                     html += '<tr style="border-bottom: 1px solid #333;">';
                     if (index === 0) {
-                        html += `<td style="padding: 8px;" rowspan="${sortedQtys.length}">${cardName}</td>`;
+                        // Afficher aussi le pourcentage global (nombre de tournois avec la carte / total de tournois)
+                        const globalPercentage = ((cardTournamentCount[cardName] / totalTournaments) * 100).toFixed(0);
+                        html += `<td style="padding: 8px;" rowspan="${sortedQtys.length}">${cardName} <span style="color: #888; font-size: 0.9em;">(${globalPercentage}% des tournois)</span></td>`;
                     }
                     html += `<td style="text-align: center; padding: 8px;">${qty}</td>`;
                     html += `<td style="text-align: center; padding: 8px;">${percentage}%</td>`;
@@ -207,6 +224,12 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             // Ne pas afficher le bouton si l'URL contient "matchups"
             if (window.location.href.includes('matchups')) {
                 console.log('[BetterLimitless] Bouton non affiché car l\'URL contient "matchups"');
+                return;
+            }
+
+            // Vérifier si le bouton existe déjà pour éviter les doublons
+            if (document.getElementById('analyze-tournaments-btn')) {
+                console.log('[BetterLimitless] Bouton déjà créé, skip');
                 return;
             }
 
@@ -255,12 +278,49 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             }
 
             parentInPage.appendChild(buttonContainer);
+            console.log('[BetterLimitless] Bouton créé avec succès');
         }
 
-        // Lancer le script quand la page est chargée
-        window.addEventListener('load', () => {
-            console.log('[BetterLimitless] Initializing tournament analyzer button');
-            createAnalyzeButton();
-        });
+        // Fonction pour initialiser le bouton de manière robuste
+        function initializeButton() {
+            // Essayer de créer le bouton immédiatement
+            const parentInPage = document.querySelector('.player-nav');
+            if (parentInPage) {
+                console.log('[BetterLimitless] player-nav trouvé immédiatement');
+                createAnalyzeButton();
+                return;
+            }
+
+            // Si l'élément n'existe pas encore, utiliser un MutationObserver
+            console.log('[BetterLimitless] player-nav non trouvé, utilisation de MutationObserver');
+            const observer = new MutationObserver((mutations, obs) => {
+                const parentInPage = document.querySelector('.player-nav');
+                if (parentInPage) {
+                    console.log('[BetterLimitless] player-nav détecté par MutationObserver');
+                    createAnalyzeButton();
+                    obs.disconnect(); // Arrêter l'observation une fois le bouton créé
+                }
+            });
+
+            // Observer les changements dans le DOM
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            // Timeout de sécurité après 10 secondes
+            setTimeout(() => {
+                observer.disconnect();
+                console.log('[BetterLimitless] MutationObserver arrêté après timeout');
+            }, 10000);
+        }
+
+        // Démarrer l'initialisation dès que le DOM est prêt
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeButton);
+        } else {
+            // Le DOM est déjà chargé
+            initializeButton();
+        }
     })();
 });
