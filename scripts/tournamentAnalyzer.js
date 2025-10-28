@@ -26,47 +26,41 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                 decklistDivs.forEach((decklistDiv, index) => {
                     console.log(`[BetterLimitless] Traitement de la decklist ${index + 1}`);
-                    // Récupérer tous les <a> qui suivent cette div
-                    let nextElement = decklistDiv.nextElementSibling;
-                    let cardsFoundInThisDeck = 0;
 
-                    // Parcourir les éléments suivants pour trouver les liens de cartes
-                    while (nextElement) {
-                        const links = nextElement.querySelectorAll('a');
-                        console.log(`[BetterLimitless] Liens trouvés dans l'élément:`, links.length);
+                    // Chercher tous les liens À L'INTÉRIEUR de la div decklist
+                    // Structure: .decklist > .column > .cards > p > a
+                    const links = decklistDiv.querySelectorAll('.cards p a');
+                    console.log(`[BetterLimitless] Liens trouvés dans la decklist:`, links.length);
 
-                        links.forEach(link => {
-                            const text = link.textContent.trim();
-                            console.log(`[BetterLimitless] Texte du lien: "${text}"`);
-                            // Format attendu: "Qty Nom"
-                            const match = text.match(/^(\d+)\s+(.+)$/);
+                    links.forEach(link => {
+                        const text = link.textContent.trim();
+                        console.log(`[BetterLimitless] Texte du lien: "${text}"`);
 
-                            if (match) {
-                                const qty = parseInt(match[1]);
-                                const cardName = match[2];
-                                console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty}`);
+                        // Format attendu: "Qty Nom (SET-NUM)" ou "Qty Nom"
+                        // Exemples: "4 Dreepy (TWM-128)", "4 Iono PAL 185"
+                        const match = text.match(/^(\d+)\s+(.+?)(?:\s*\([^)]+\))?$/);
 
-                                if (!cardData[cardName]) {
-                                    cardData[cardName] = {};
-                                }
+                        if (match) {
+                            const qty = parseInt(match[1]);
+                            let cardName = match[2].trim();
 
-                                if (!cardData[cardName][qty]) {
-                                    cardData[cardName][qty] = 0;
-                                }
+                            // Enlever les informations de set à la fin si présentes (format: NOM SET NUM)
+                            // Par exemple: "Iono PAL 185" -> "Iono"
+                            cardName = cardName.replace(/\s+[A-Z]{2,}\s+\d+\s*$/, '');
 
-                                cardData[cardName][qty]++;
-                                cardsFoundInThisDeck++;
+                            console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty}`);
+
+                            if (!cardData[cardName]) {
+                                cardData[cardName] = {};
                             }
-                        });
 
-                        // Si on atteint une nouvelle section decklist, on s'arrête
-                        if (nextElement.classList.contains('decklist')) {
-                            break;
+                            if (!cardData[cardName][qty]) {
+                                cardData[cardName][qty] = 0;
+                            }
+
+                            cardData[cardName][qty]++;
                         }
-
-                        nextElement = nextElement.nextElementSibling;
-                    }
-                    console.log(`[BetterLimitless] Cartes trouvées dans cette decklist: ${cardsFoundInThisDeck}`);
+                    });
                 });
 
                 const totalCards = Object.keys(cardData).length;
