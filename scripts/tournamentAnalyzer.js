@@ -12,6 +12,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
         // Fonction pour parser une page de tournoi et extraire les cartes
         async function parseTournamentPage(url) {
             try {
+                console.log('[BetterLimitless] Parsing de la page:', url);
                 const response = await fetch(url);
                 const html = await response.text();
                 const parser = new DOMParser();
@@ -21,23 +22,29 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                 // Trouver toutes les div avec la classe "decklist"
                 const decklistDivs = doc.querySelectorAll('.decklist');
+                console.log('[BetterLimitless] Nombre de decklists trouvées:', decklistDivs.length);
 
-                decklistDivs.forEach(decklistDiv => {
+                decklistDivs.forEach((decklistDiv, index) => {
+                    console.log(`[BetterLimitless] Traitement de la decklist ${index + 1}`);
                     // Récupérer tous les <a> qui suivent cette div
                     let nextElement = decklistDiv.nextElementSibling;
+                    let cardsFoundInThisDeck = 0;
 
                     // Parcourir les éléments suivants pour trouver les liens de cartes
                     while (nextElement) {
                         const links = nextElement.querySelectorAll('a');
+                        console.log(`[BetterLimitless] Liens trouvés dans l'élément:`, links.length);
 
                         links.forEach(link => {
                             const text = link.textContent.trim();
+                            console.log(`[BetterLimitless] Texte du lien: "${text}"`);
                             // Format attendu: "Qty Nom"
                             const match = text.match(/^(\d+)\s+(.+)$/);
 
                             if (match) {
                                 const qty = parseInt(match[1]);
                                 const cardName = match[2];
+                                console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty}`);
 
                                 if (!cardData[cardName]) {
                                     cardData[cardName] = {};
@@ -48,6 +55,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                                 }
 
                                 cardData[cardName][qty]++;
+                                cardsFoundInThisDeck++;
                             }
                         });
 
@@ -58,8 +66,12 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                         nextElement = nextElement.nextElementSibling;
                     }
+                    console.log(`[BetterLimitless] Cartes trouvées dans cette decklist: ${cardsFoundInThisDeck}`);
                 });
 
+                const totalCards = Object.keys(cardData).length;
+                console.log(`[BetterLimitless] Total de cartes uniques trouvées sur cette page: ${totalCards}`);
+                console.log('[BetterLimitless] Données extraites:', cardData);
                 return cardData;
             } catch (error) {
                 console.error(`[BetterLimitless] Erreur lors du parsing de ${url}:`, error);
@@ -106,6 +118,8 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                     return href.startsWith('http') ? href : `https://play.limitlesstcg.com${href}`;
                 });
 
+            console.log('[BetterLimitless] Liens de tournois trouvés:', tournamentLinks);
+
             if (tournamentLinks.length === 0) {
                 statusDiv.textContent = 'Aucun tournoi trouvé';
                 statusDiv.style.color = '#ff4444';
@@ -136,6 +150,8 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
         // Fonction pour afficher les résultats
         function displayResults(cardData) {
+            console.log('[BetterLimitless] Affichage des résultats avec les données:', cardData);
+            console.log('[BetterLimitless] Nombre de cartes à afficher:', Object.keys(cardData).length);
             // Créer ou récupérer la div de résultats
             let resultsDiv = document.getElementById('tournament-results');
 
