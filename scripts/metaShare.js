@@ -19,7 +19,7 @@ chrome.storage?.sync.get('metaShareEnabled', (data) => {
 
       console.log('[BetterLimitless] Loading Chart.js from CDN...');
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+      script.src = chrome.runtime.getURL('lib/chart.umd.js');
       script.onload = () => {
         console.log('[BetterLimitless] Chart.js loaded');
         callback();
@@ -45,8 +45,7 @@ chrome.storage?.sync.get('metaShareEnabled', (data) => {
     function parseMetaTable(table) {
       console.log('[BetterLimitless] Parsing table...');
       const rows = table.querySelectorAll('tbody tr');
-      const labels = [];
-      const values = [];
+      const rawData = [];
 
       rows.forEach((row, index) => {
         if (index === 0) return; // Skip the header row
@@ -56,11 +55,28 @@ chrome.storage?.sync.get('metaShareEnabled', (data) => {
         const share = parseFloat(shareAttr);
 
         if (deck && !isNaN(share)) {
-          console.log(`[BetterLimitless] Found deck: ${deck}, share: ${share}`);
-          labels.push(deck);
-          values.push(share);
+          rawData.push({ deck, share });
         }
       });
+
+      // Séparer les decks >= 1% et < 1%
+      const mainDecks = [];
+      let othersShare = 0;
+
+      rawData.forEach(({ deck, share }) => {
+        if (share >= 0.01) {
+          mainDecks.push({ deck, share });
+        } else {
+          othersShare += share;
+        }
+      });
+
+      if (othersShare > 0) {
+        mainDecks.push({ deck: 'Others', share: othersShare });
+      }
+
+      const labels = mainDecks.map(d => d.deck);
+      const values = mainDecks.map(d => d.share);
 
       console.log('[BetterLimitless] Parsed labels:', labels);
       console.log('[BetterLimitless] Parsed values:', values);

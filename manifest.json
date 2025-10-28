@@ -4,8 +4,6 @@
   "version": "1.0",
   "description": "Better Limitless is an open-source tool for enhancing the Limitless tournament platform. Made by the MatuxGG",
   "permissions": [
-    "scripting",
-    "activeTab",
     "storage"
   ],
   "host_permissions": [
