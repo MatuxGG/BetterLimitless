@@ -94,9 +94,13 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             statusDiv.textContent = 'Analyse en cours...';
             statusDiv.style.color = '#ffa500';
 
-            // Récupérer tous les liens vers les tournois
+            // Récupérer tous les liens vers les tournois qui contiennent un <i> avec la classe "fa-list-alt"
             const tournamentLinks = Array.from(document.querySelectorAll('a'))
-                .filter(link => link.getAttribute('href')?.startsWith('/tournament/'))
+                .filter(link => {
+                    const href = link.getAttribute('href');
+                    const hasIcon = link.querySelector('i.fa-list-alt') !== null;
+                    return href?.startsWith('/tournament/') && hasIcon;
+                })
                 .map(link => {
                     const href = link.getAttribute('href');
                     return href.startsWith('http') ? href : `https://play.limitlesstcg.com${href}`;
