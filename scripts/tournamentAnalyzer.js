@@ -69,10 +69,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 const totalCards = Object.keys(cardData).length;
                 console.log(`[BetterLimitless] Total de cartes uniques trouvées sur cette page: ${totalCards}`);
                 console.log('[BetterLimitless] Données extraites:', cardData);
-                return { cardData, cardsInThisTournament };
+                return { cardData, cardsInThisTournament, decklistCount: decklistDivs.length };
             } catch (error) {
                 console.error(`[BetterLimitless] Erreur lors du parsing de ${url}:`, error);
-                return { cardData: {}, cardsInThisTournament: new Set() };
+                return { cardData: {}, cardsInThisTournament: new Set(), decklistCount: 0 };
             }
         }
 
@@ -128,12 +128,14 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
             const allCardData = {};
             const cardTournamentCount = {}; // Compte le nombre de tournois où chaque carte apparaît
+            let totalDecklists = 0; // Compte le nombre total de decklists analysées
             let processed = 0;
 
             // Analyser chaque tournoi
             for (const url of tournamentLinks) {
                 const result = await parseTournamentPage(url);
                 mergeCardData(allCardData, result.cardData);
+                totalDecklists += result.decklistCount;
 
                 // Compter les tournois où chaque carte apparaît
                 result.cardsInThisTournament.forEach(cardName => {
@@ -148,7 +150,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             }
 
             // Afficher les résultats
-            displayResults(allCardData, cardTournamentCount, tournamentLinks.length);
+            displayResults(allCardData, cardTournamentCount, totalDecklists);
 
             statusDiv.textContent = `Analyse terminée : ${tournamentLinks.length} tournoi(s) analysé(s)`;
             statusDiv.style.color = '#44ff44';
@@ -156,10 +158,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
         }
 
         // Fonction pour afficher les résultats
-        function displayResults(cardData, cardTournamentCount, totalTournaments) {
+        function displayResults(cardData, cardTournamentCount, totalDecklists) {
             console.log('[BetterLimitless] Affichage des résultats avec les données:', cardData);
             console.log('[BetterLimitless] Nombre de cartes à afficher:', Object.keys(cardData).length);
-            console.log('[BetterLimitless] Total de tournois analysés:', totalTournaments);
+            console.log('[BetterLimitless] Total de decklists analysées:', totalDecklists);
             // Créer ou récupérer la div de résultats
             let resultsDiv = document.getElementById('tournament-results');
 
@@ -195,13 +197,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 const quantities = cardData[cardName];
                 const sortedQtys = Object.keys(quantities).sort((a, b) => parseInt(b) - parseInt(a));
 
-                // Calculer le total d'occurrences pour cette carte (somme de toutes les decklists)
-                const totalOccurrences = sortedQtys.reduce((sum, qty) => sum + quantities[qty], 0);
-
                 sortedQtys.forEach((qty, index) => {
                     const count = quantities[qty];
-                    // Calculer le pourcentage par rapport au nombre total de decklists contenant cette carte
-                    const percentage = ((count / totalOccurrences) * 100).toFixed(0);
+                    // Calculer le pourcentage par rapport au nombre total de decklists analysées
+                    const percentage = ((count / totalDecklists) * 100).toFixed(0);
 
                     html += '<tr style="border-bottom: 1px solid #333;">';
                     if (index === 0) {
