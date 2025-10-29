@@ -282,30 +282,34 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             html += '<button id="copy-decklist-btn" style="background-color: #2563eb; color: #f0f0f0; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-bottom: 15px; font-weight: 500;">Copier la decklist</button>';
             html += '<span id="copy-status" style="margin-left: 10px; color: #44ff44;"></span>';
 
-            html += '<div style="background-color: #0a0a0a; padding: 10px; border-radius: 4px; font-family: monospace; max-height: 400px; overflow-y: auto;">';
+            // Utiliser la structure native de Limitless TCG
+            html += '<div class="decklist">';
 
             // Trier les catégories
             const sortedCategories = Object.keys(autoDecklistByCategory).sort();
 
-            sortedCategories.forEach((category, categoryIndex) => {
-                // Ajouter un séparateur entre les catégories
-                if (categoryIndex > 0) {
-                    html += '<div style="height: 10px;"></div>';
-                }
+            sortedCategories.forEach((category) => {
+                // Calculer le nombre total de cartes dans cette catégorie
+                const categoryTotal = autoDecklistByCategory[category].reduce((sum, card) => sum + card.quantity, 0);
 
-                // Afficher le nom de la catégorie
-                html += `<div style="color: #2563eb; padding: 4px 0; font-weight: bold;">${category}</div>`;
+                // Créer une colonne pour chaque catégorie
+                html += '<div class="column">';
+                html += '<div class="cards">';
+                html += `<div class="heading">${category} (${categoryTotal})</div>`;
 
                 // Afficher les cartes de cette catégorie
                 autoDecklistByCategory[category].forEach(card => {
                     const cardNameDisplay = card.href
-                        ? `<a href="${card.href}" target="_blank" style="color: #2563eb; text-decoration: none;">${card.quantity} ${card.fullName}</a>`
+                        ? `<a href="${card.href}" target="_blank">${card.quantity} ${card.fullName}</a>`
                         : `${card.quantity} ${card.fullName}`;
-                    html += `<div style="color: #f0f0f0; padding: 4px 0;">${cardNameDisplay} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></div>`;
+                    html += `<p>${cardNameDisplay} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></p>`;
                 });
+
+                html += '</div>'; // Fermer .cards
+                html += '</div>'; // Fermer .column
             });
 
-            html += '</div>';
+            html += '</div>'; // Fermer .decklist
             autoDecklistDiv.innerHTML = html;
 
             // Ajouter l'événement pour copier la decklist
