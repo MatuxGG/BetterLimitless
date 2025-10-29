@@ -192,6 +192,37 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             button.disabled = false;
         }
 
+        // Fonction pour distribuer les catégories dans les colonnes de manière équilibrée
+        function distributeCategories(categoriesData) {
+            // categoriesData est un tableau de {category, lineCount, html}
+            // Trier par nombre de lignes décroissant (algorithme first-fit decreasing)
+            const sortedCategories = [...categoriesData].sort((a, b) => b.lineCount - a.lineCount);
+
+            // Initialiser 3 colonnes
+            const columns = [
+                { categories: [], totalLines: 0 },
+                { categories: [], totalLines: 0 },
+                { categories: [], totalLines: 0 }
+            ];
+
+            // Distribuer chaque catégorie dans la colonne qui a le moins de lignes
+            sortedCategories.forEach(categoryData => {
+                // Trouver la colonne avec le moins de lignes
+                let minColumn = columns[0];
+                for (let i = 1; i < columns.length; i++) {
+                    if (columns[i].totalLines < minColumn.totalLines) {
+                        minColumn = columns[i];
+                    }
+                }
+
+                // Ajouter la catégorie à cette colonne
+                minColumn.categories.push(categoryData);
+                minColumn.totalLines += categoryData.lineCount;
+            });
+
+            return columns;
+        }
+
         // Fonction pour générer une decklist automatique avec les cartes >50%, groupée par catégorie
         function generateAutoDecklist(cardData, totalDecklists) {
             const autoDecklistByCategory = {};
@@ -281,30 +312,51 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             html += '<button id="copy-decklist-btn" style="background-color: #2563eb; color: #f0f0f0; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-bottom: 15px; font-weight: 500;">Copier la decklist</button>';
             html += '<span id="copy-status" style="margin-left: 10px; color: #44ff44;"></span>';
 
-            // Utiliser la structure native de Limitless TCG
-            html += '<div class="decklist">';
-
-            // Trier les catégories
+            // Préparer les données de chaque catégorie
+            const categoriesData = [];
             const sortedCategories = Object.keys(autoDecklistByCategory).sort();
 
             sortedCategories.forEach((category) => {
                 // Calculer le nombre total de cartes dans cette catégorie
                 const categoryTotal = autoDecklistByCategory[category].reduce((sum, card) => sum + card.quantity, 0);
 
-                // Créer une colonne pour chaque catégorie
-                html += '<div class="column">';
-                html += '<div class="cards">';
-                html += `<div class="heading">${category} (${categoryTotal})</div>`;
+                // Le nombre de lignes = le nombre de cartes dans cette catégorie
+                const categoryLineCount = autoDecklistByCategory[category].length;
+
+                // Construire le HTML pour cette catégorie
+                let categoryHtml = '';
+                categoryHtml += '<div class="cards">';
+                categoryHtml += `<div class="heading">${category} (${categoryTotal})</div>`;
 
                 // Afficher les cartes de cette catégorie
                 autoDecklistByCategory[category].forEach(card => {
                     const cardNameDisplay = card.href
                         ? `<a href="${card.href}" target="_blank">${card.quantity} ${card.fullName}</a>`
                         : `${card.quantity} ${card.fullName}`;
-                    html += `<p>${cardNameDisplay} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></p>`;
+                    categoryHtml += `<p>${cardNameDisplay} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></p>`;
                 });
 
-                html += '</div>'; // Fermer .cards
+                categoryHtml += '</div>'; // Fermer .cards
+
+                categoriesData.push({
+                    category: category,
+                    lineCount: categoryLineCount,
+                    html: categoryHtml
+                });
+            });
+
+            // Distribuer les catégories dans les colonnes de manière équilibrée
+            const columns = distributeCategories(categoriesData);
+
+            // Utiliser la structure native de Limitless TCG
+            html += '<div class="decklist">';
+
+            // Générer le HTML pour chaque colonne
+            columns.forEach(column => {
+                html += '<div class="column">';
+                column.categories.forEach(categoryData => {
+                    html += categoryData.html;
+                });
                 html += '</div>'; // Fermer .column
             });
 
@@ -401,24 +453,19 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
             let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Résultats de l\'analyse</h3>';
 
-            // Utiliser la structure native de Limitless TCG
-            html += '<div class="decklist">';
+            // Préparer les données de chaque catégorie
+            const categoriesData = [];
 
             sortedCategories.forEach(category => {
                 // Compter le nombre total de lignes dans cette catégorie (une ligne par combinaison carte+quantité)
                 let categoryLineCount = 0;
                 const sortedCards = cardsByCategory[category].sort();
-                sortedCards.forEach(cardName => {
-                    const quantities = cardData[cardName].quantities;
-                    categoryLineCount += Object.keys(quantities).length;
-                });
+                let categoryHtml = '';
 
-                // Créer une colonne pour chaque catégorie
-                html += '<div class="column">';
-                html += '<div class="cards">';
-                html += `<div class="heading">${category} (${categoryLineCount})</div>`;
+                categoryHtml += '<div class="cards">';
+                categoryHtml += `<div class="heading">${category} (${categoryLineCount})</div>`;
 
-                // Afficher les cartes de cette catégorie
+                // Construire le HTML des cartes de cette catégorie
                 sortedCards.forEach(cardName => {
                     const card = cardData[cardName];
                     const quantities = card.quantities;
@@ -426,6 +473,8 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                     sortedQtys.forEach(qty => {
                         const count = quantities[qty];
+                        categoryLineCount++;
+
                         // Calculer le pourcentage par rapport au nombre total de decklists analysées
                         const percentage = ((count / totalDecklists) * 100).toFixed(0);
 
@@ -434,11 +483,34 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                         const cardDisplay = card.href
                             ? `<a href="${card.href}" target="_blank">${qty} ${nameWithoutQty}</a>`
                             : `${qty} ${nameWithoutQty}`;
-                        html += `<p>${cardDisplay} <span style="color: #888;">(${percentage}%)</span></p>`;
+                        categoryHtml += `<p>${cardDisplay} <span style="color: #888;">(${percentage}%)</span></p>`;
                     });
                 });
 
-                html += '</div>'; // Fermer .cards
+                categoryHtml += '</div>'; // Fermer .cards
+
+                // Mettre à jour le heading avec le bon compte
+                categoryHtml = categoryHtml.replace(`(${0})`, `(${categoryLineCount})`);
+
+                categoriesData.push({
+                    category: category,
+                    lineCount: categoryLineCount,
+                    html: categoryHtml
+                });
+            });
+
+            // Distribuer les catégories dans les colonnes de manière équilibrée
+            const columns = distributeCategories(categoriesData);
+
+            // Utiliser la structure native de Limitless TCG
+            html += '<div class="decklist">';
+
+            // Générer le HTML pour chaque colonne
+            columns.forEach(column => {
+                html += '<div class="column">';
+                column.categories.forEach(categoryData => {
+                    html += categoryData.html;
+                });
                 html += '</div>'; // Fermer .column
             });
 
