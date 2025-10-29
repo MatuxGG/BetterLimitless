@@ -1,16 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
     const toggles = document.querySelectorAll('.module-toggle');
 
-    // Charger tous les états depuis le storage
+    // Load all states from storage
     chrome.storage.sync.get(null, (storageData) => {
         toggles.forEach(toggle => {
             const module = toggle.dataset.module;
             const key = `${module}Enabled`;
-            toggle.checked = storageData[key] !== false; // true par défaut
+            toggle.checked = storageData[key] !== false; // true by default
         });
     });
 
-    // Écoute tous les changements
+    // Listen to all changes
     toggles.forEach(toggle => {
         toggle.addEventListener('change', () => {
             const module = toggle.dataset.module;
@@ -55,14 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
             row.appendChild(endInput);
             container.appendChild(row);
 
-            // Sauvegarde fiable avec clone
+            // Reliable save with clone
             [startInput, endInput].forEach(input => {
                 input.addEventListener('change', () => {
                     chrome.storage.sync.get('availabilityConfig', (data) => {
                         const current = structuredClone(data.availabilityConfig || defaultConfig);
                         current[day] = [{ start: startInput.value, end: endInput.value }];
                         chrome.storage.sync.set({ availabilityConfig: current }, () => {
-                            console.log(`[BetterLimitless] Sauvegardé: ${day}`, current[day]);
+                            console.log(`[BetterLimitless] Saved: ${day}`, current[day]);
                         });
                     });
                 });

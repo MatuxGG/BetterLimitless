@@ -1,6 +1,6 @@
 chrome.storage?.sync.get('availabilityConfig', (data) => {
     if (data.availabilityHighlighterEnabled === false) {
-        console.log('[BetterLimitless] Availability highlighter script désactivé');
+        console.log('[BetterLimitless] Availability highlighter script disabled');
         return;
     }
 

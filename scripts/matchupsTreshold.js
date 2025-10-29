@@ -1,6 +1,6 @@
 chrome.storage?.sync.get('matchThresholdEnabled', (data) => {
     if (data.matchThresholdEnabled === false) {
-        console.log('[BetterLimitless] Match threshold script désactivé');
+        console.log('[BetterLimitless] Match threshold script disabled');
         return;
     }
 
@@ -13,7 +13,7 @@ chrome.storage?.sync.get('matchThresholdEnabled', (data) => {
         const columnTitle = "Matches";
         const defaultThreshold = 20;
 
-        // Fonction principale pour filtrer les lignes
+        // Main function to filter rows
         function filterRows(threshold) {
             const tables = document.querySelectorAll('table');
             tables.forEach(table => {
@@ -47,7 +47,7 @@ chrome.storage?.sync.get('matchThresholdEnabled', (data) => {
             });
         }
 
-        // Création du champ de saisie
+        // Create input field
         function createThresholdInput() {
             const inputContainer = document.createElement('div');
             inputContainer.style.display = 'flex';
@@ -88,7 +88,7 @@ chrome.storage?.sync.get('matchThresholdEnabled', (data) => {
             filterRows(defaultThreshold);
         }
 
-        // Lancer le script quand la page est chargée
+        // Launch the script when the page is loaded
         window.addEventListener('load', () => {
             console.log('[BetterLimitless] Initializing match threshold input');
             createThresholdInput();
