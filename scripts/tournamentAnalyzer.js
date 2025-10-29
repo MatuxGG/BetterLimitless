@@ -242,20 +242,23 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
         // Fonction pour afficher la decklist automatique groupée par catégorie
         function displayAutoDecklist(autoDecklistByCategory) {
+            // Récupérer le conteneur flex principal
+            let flexContainer = document.getElementById('tournament-flex-container');
+
             let autoDecklistDiv = document.getElementById('auto-decklist');
 
             if (!autoDecklistDiv) {
                 autoDecklistDiv = document.createElement('div');
                 autoDecklistDiv.id = 'auto-decklist';
-                autoDecklistDiv.style.marginTop = '20px';
+                autoDecklistDiv.style.flex = '1 1 500px';
+                autoDecklistDiv.style.minWidth = '300px';
                 autoDecklistDiv.style.padding = '15px';
                 autoDecklistDiv.style.backgroundColor = '#1a1a1a';
                 autoDecklistDiv.style.border = '1px solid #444';
                 autoDecklistDiv.style.borderRadius = '4px';
 
-                const resultsDiv = document.getElementById('tournament-results');
-                if (resultsDiv && resultsDiv.parentElement) {
-                    resultsDiv.parentElement.insertBefore(autoDecklistDiv, resultsDiv.nextSibling);
+                if (flexContainer) {
+                    flexContainer.appendChild(autoDecklistDiv);
                 }
             }
 
@@ -347,13 +350,32 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             console.log('[BetterLimitless] Affichage des résultats avec les données:', cardData);
             console.log('[BetterLimitless] Nombre de cartes à afficher:', Object.keys(cardData).length);
             console.log('[BetterLimitless] Total de decklists analysées:', totalDecklists);
+
+            // Créer ou récupérer le conteneur flex principal
+            let flexContainer = document.getElementById('tournament-flex-container');
+
+            if (!flexContainer) {
+                flexContainer = document.createElement('div');
+                flexContainer.id = 'tournament-flex-container';
+                flexContainer.style.display = 'flex';
+                flexContainer.style.flexWrap = 'wrap';
+                flexContainer.style.gap = '20px';
+                flexContainer.style.marginTop = '20px';
+
+                const container = document.querySelector('.player-nav');
+                if (container) {
+                    container.parentElement.insertBefore(flexContainer, container.nextSibling);
+                }
+            }
+
             // Créer ou récupérer la div de résultats
             let resultsDiv = document.getElementById('tournament-results');
 
             if (!resultsDiv) {
                 resultsDiv = document.createElement('div');
                 resultsDiv.id = 'tournament-results';
-                resultsDiv.style.marginTop = '20px';
+                resultsDiv.style.flex = '1 1 500px';
+                resultsDiv.style.minWidth = '300px';
                 resultsDiv.style.padding = '15px';
                 resultsDiv.style.backgroundColor = '#1a1a1a';
                 resultsDiv.style.border = '1px solid #444';
@@ -361,10 +383,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 resultsDiv.style.maxHeight = '500px';
                 resultsDiv.style.overflowY = 'auto';
 
-                const container = document.querySelector('.player-nav');
-                if (container) {
-                    container.parentElement.insertBefore(resultsDiv, container.nextSibling);
-                }
+                flexContainer.appendChild(resultsDiv);
             }
 
             // Grouper les cartes par catégorie
