@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Better Limitless",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Better Limitless is an open-source tool for enhancing the Limitless tournament platform. Made by the MatuxGG",
   "permissions": [
     "storage"
