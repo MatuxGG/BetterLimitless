@@ -9,7 +9,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
         console.log('[BetterLimitless] Tournament analyzer script loaded');
 
-        // Fonction pour parser une page de tournoi et extraire les cartes
+        // Fonction pour parser une page de tournoi et extraire les cartes avec leurs catégories
         async function parseTournamentPage(url) {
             try {
                 console.log('[BetterLimitless] Parsing de la page:', url);
@@ -28,41 +28,62 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 decklistDivs.forEach((decklistDiv, index) => {
                     console.log(`[BetterLimitless] Traitement de la decklist ${index + 1}`);
 
-                    // Chercher tous les liens À L'INTÉRIEUR de la div decklist
-                    // Structure: .decklist > .column > .cards > p > a
-                    const links = decklistDiv.querySelectorAll('.cards p a');
-                    console.log(`[BetterLimitless] Liens trouvés dans la decklist:`, links.length);
+                    // Parcourir tous les éléments de la decklist pour trouver les catégories et les cartes
+                    const columns = decklistDiv.querySelectorAll('.column');
 
-                    links.forEach(link => {
-                        const text = link.textContent.trim();
-                        console.log(`[BetterLimitless] Texte du lien: "${text}"`);
+                    columns.forEach(column => {
+                        let currentCategory = 'Autre'; // Catégorie par défaut
 
-                        // Format attendu: "Qty Nom (SET-NUM)" ou "Qty Nom"
-                        // Exemples: "4 Dreepy (TWM-128)", "4 Iono PAL 185"
-                        const match = text.match(/^(\d+)\s+(.+?)(?:\s*\([^)]+\))?$/);
+                        // Chercher les catégories et les cartes dans l'ordre
+                        const elements = column.querySelectorAll('.heading, .cards');
 
-                        if (match) {
-                            const qty = parseInt(match[1]);
-                            let cardName = match[2].trim();
+                        elements.forEach(element => {
+                            if (element.classList.contains('heading')) {
+                                // Extraire le nom de la catégorie sans le nombre entre parenthèses
+                                const headingText = element.textContent.trim();
+                                const categoryMatch = headingText.match(/^(.+?)\s*\(\d+\)$/);
+                                currentCategory = categoryMatch ? categoryMatch[1].trim() : headingText;
+                                console.log(`[BetterLimitless] Catégorie détectée: ${currentCategory}`);
+                            } else if (element.classList.contains('cards')) {
+                                // Traiter les cartes de cette catégorie
+                                const links = element.querySelectorAll('p a');
 
-                            // Enlever les informations de set à la fin si présentes (format: NOM SET NUM)
-                            // Par exemple: "Iono PAL 185" -> "Iono"
-                            cardName = cardName.replace(/\s+[A-Z]{2,}\s+\d+\s*$/, '');
+                                links.forEach(link => {
+                                    const text = link.textContent.trim();
+                                    console.log(`[BetterLimitless] Texte du lien: "${text}" dans catégorie "${currentCategory}"`);
 
-                            console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty}`);
+                                    // Format attendu: "Qty Nom (SET-NUM)" ou "Qty Nom"
+                                    // Exemples: "4 Dreepy (TWM-128)", "4 Iono PAL 185"
+                                    const match = text.match(/^(\d+)\s+(.+?)(?:\s*\([^)]+\))?$/);
 
-                            cardsInThisTournament.add(cardName); // Ajouter au Set
+                                    if (match) {
+                                        const qty = parseInt(match[1]);
+                                        let cardName = match[2].trim();
 
-                            if (!cardData[cardName]) {
-                                cardData[cardName] = {};
+                                        // Enlever les informations de set à la fin si présentes (format: NOM SET NUM)
+                                        // Par exemple: "Iono PAL 185" -> "Iono"
+                                        cardName = cardName.replace(/\s+[A-Z]{2,}\s+\d+\s*$/, '');
+
+                                        console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty} [${currentCategory}]`);
+
+                                        cardsInThisTournament.add(cardName); // Ajouter au Set
+
+                                        if (!cardData[cardName]) {
+                                            cardData[cardName] = {
+                                                category: currentCategory,
+                                                quantities: {}
+                                            };
+                                        }
+
+                                        if (!cardData[cardName].quantities[qty]) {
+                                            cardData[cardName].quantities[qty] = 0;
+                                        }
+
+                                        cardData[cardName].quantities[qty]++;
+                                    }
+                                });
                             }
-
-                            if (!cardData[cardName][qty]) {
-                                cardData[cardName][qty] = 0;
-                            }
-
-                            cardData[cardName][qty]++;
-                        }
+                        });
                     });
                 });
 
@@ -76,18 +97,21 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             }
         }
 
-        // Fonction pour fusionner les données de cartes
+        // Fonction pour fusionner les données de cartes avec leurs catégories
         function mergeCardData(target, source) {
             for (const cardName in source) {
                 if (!target[cardName]) {
-                    target[cardName] = {};
+                    target[cardName] = {
+                        category: source[cardName].category,
+                        quantities: {}
+                    };
                 }
 
-                for (const qty in source[cardName]) {
-                    if (!target[cardName][qty]) {
-                        target[cardName][qty] = 0;
+                for (const qty in source[cardName].quantities) {
+                    if (!target[cardName].quantities[qty]) {
+                        target[cardName].quantities[qty] = 0;
                     }
-                    target[cardName][qty] += source[cardName][qty];
+                    target[cardName].quantities[qty] += source[cardName].quantities[qty];
                 }
             }
         }
@@ -157,13 +181,14 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             button.disabled = false;
         }
 
-        // Fonction pour générer une decklist automatique avec les cartes >50%
+        // Fonction pour générer une decklist automatique avec les cartes >50%, groupée par catégorie
         function generateAutoDecklist(cardData, totalDecklists) {
-            const autoDecklist = [];
+            const autoDecklistByCategory = {};
 
             // Pour chaque carte, trouver la quantité la plus représentée qui dépasse 50%
             for (const cardName in cardData) {
-                const quantities = cardData[cardName];
+                const category = cardData[cardName].category;
+                const quantities = cardData[cardName].quantities;
                 let bestQty = null;
                 let bestPercentage = 0;
 
@@ -181,7 +206,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                 // Si une quantité dépasse 50%, l'ajouter à la decklist
                 if (bestQty !== null) {
-                    autoDecklist.push({
+                    if (!autoDecklistByCategory[category]) {
+                        autoDecklistByCategory[category] = [];
+                    }
+                    autoDecklistByCategory[category].push({
                         name: cardName,
                         quantity: bestQty,
                         percentage: bestPercentage
@@ -189,14 +217,16 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 }
             }
 
-            // Trier par nom de carte
-            autoDecklist.sort((a, b) => a.name.localeCompare(b.name));
+            // Trier les cartes dans chaque catégorie par nom
+            for (const category in autoDecklistByCategory) {
+                autoDecklistByCategory[category].sort((a, b) => a.name.localeCompare(b.name));
+            }
 
-            return autoDecklist;
+            return autoDecklistByCategory;
         }
 
-        // Fonction pour afficher la decklist automatique
-        function displayAutoDecklist(autoDecklist) {
+        // Fonction pour afficher la decklist automatique groupée par catégorie
+        function displayAutoDecklist(autoDecklistByCategory) {
             let autoDecklistDiv = document.getElementById('auto-decklist');
 
             if (!autoDecklistDiv) {
@@ -214,14 +244,17 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 }
             }
 
-            if (autoDecklist.length === 0) {
+            if (Object.keys(autoDecklistByCategory).length === 0) {
                 autoDecklistDiv.innerHTML = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Decklist automatique</h3>' +
                     '<p style="color: #ffa500;">Aucune carte ne dépasse 50% de présence dans les decklists analysées.</p>';
                 return;
             }
 
             // Calculer le total de cartes
-            const totalCards = autoDecklist.reduce((sum, card) => sum + card.quantity, 0);
+            let totalCards = 0;
+            for (const category in autoDecklistByCategory) {
+                totalCards += autoDecklistByCategory[category].reduce((sum, card) => sum + card.quantity, 0);
+            }
 
             // Créer le contenu HTML
             let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Decklist automatique (cartes >50%)</h3>';
@@ -233,8 +266,22 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
             html += '<div style="background-color: #0a0a0a; padding: 10px; border-radius: 4px; font-family: monospace; max-height: 400px; overflow-y: auto;">';
 
-            autoDecklist.forEach(card => {
-                html += `<div style="color: #f0f0f0; padding: 4px 0;">${card.quantity} ${card.name} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></div>`;
+            // Trier les catégories
+            const sortedCategories = Object.keys(autoDecklistByCategory).sort();
+
+            sortedCategories.forEach((category, categoryIndex) => {
+                // Ajouter un séparateur entre les catégories
+                if (categoryIndex > 0) {
+                    html += '<div style="height: 10px;"></div>';
+                }
+
+                // Afficher le nom de la catégorie
+                html += `<div style="color: #2563eb; padding: 4px 0; font-weight: bold;">${category}</div>`;
+
+                // Afficher les cartes de cette catégorie
+                autoDecklistByCategory[category].forEach(card => {
+                    html += `<div style="color: #f0f0f0; padding: 4px 0;">${card.quantity} ${card.name} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></div>`;
+                });
             });
 
             html += '</div>';
@@ -247,7 +294,19 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                 if (copyBtn) {
                     copyBtn.addEventListener('click', () => {
-                        const decklistText = autoDecklist.map(card => `${card.quantity} ${card.name}`).join('\n');
+                        // Générer le texte de la decklist avec catégories
+                        let decklistText = '';
+                        const sortedCategories = Object.keys(autoDecklistByCategory).sort();
+
+                        sortedCategories.forEach((category, index) => {
+                            if (index > 0) {
+                                decklistText += '\n';
+                            }
+                            decklistText += `${category}\n`;
+                            autoDecklistByCategory[category].forEach(card => {
+                                decklistText += `${card.quantity} ${card.name}\n`;
+                            });
+                        });
 
                         navigator.clipboard.writeText(decklistText).then(() => {
                             copyStatus.textContent = 'Copié !';
@@ -265,7 +324,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             }, 0);
         }
 
-        // Fonction pour afficher les résultats
+        // Fonction pour afficher les résultats groupés par catégorie
         function displayResults(cardData, cardTournamentCount, totalDecklists) {
             console.log('[BetterLimitless] Affichage des résultats avec les données:', cardData);
             console.log('[BetterLimitless] Nombre de cartes à afficher:', Object.keys(cardData).length);
@@ -290,37 +349,56 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 }
             }
 
-            // Trier les cartes par nom
-            const sortedCards = Object.keys(cardData).sort();
+            // Grouper les cartes par catégorie
+            const cardsByCategory = {};
+            for (const cardName in cardData) {
+                const category = cardData[cardName].category;
+                if (!cardsByCategory[category]) {
+                    cardsByCategory[category] = [];
+                }
+                cardsByCategory[category].push(cardName);
+            }
+
+            // Trier les catégories et les cartes
+            const sortedCategories = Object.keys(cardsByCategory).sort();
 
             let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Résultats de l\'analyse</h3>';
-            html += '<table style="width: 100%; color: #f0f0f0; border-collapse: collapse;">';
-            html += '<thead><tr style="border-bottom: 2px solid #444;">';
-            html += '<th style="text-align: left; padding: 8px;">Carte</th>';
-            html += '<th style="text-align: center; padding: 8px;">Quantité</th>';
-            html += '<th style="text-align: center; padding: 8px;">Pourcentage</th>';
-            html += '</tr></thead><tbody>';
 
-            sortedCards.forEach(cardName => {
-                const quantities = cardData[cardName];
-                const sortedQtys = Object.keys(quantities).sort((a, b) => parseInt(b) - parseInt(a));
+            sortedCategories.forEach(category => {
+                // Afficher le nom de la catégorie
+                html += `<h4 style="color: #2563eb; margin-top: 20px; margin-bottom: 10px;">${category}</h4>`;
+                html += '<table style="width: 100%; color: #f0f0f0; border-collapse: collapse; margin-bottom: 20px;">';
+                html += '<thead><tr style="border-bottom: 2px solid #444;">';
+                html += '<th style="text-align: left; padding: 8px;">Carte</th>';
+                html += '<th style="text-align: center; padding: 8px;">Quantité</th>';
+                html += '<th style="text-align: center; padding: 8px;">Pourcentage</th>';
+                html += '</tr></thead><tbody>';
 
-                sortedQtys.forEach((qty, index) => {
-                    const count = quantities[qty];
-                    // Calculer le pourcentage par rapport au nombre total de decklists analysées
-                    const percentage = ((count / totalDecklists) * 100).toFixed(0);
+                // Trier les cartes de la catégorie par nom
+                const sortedCards = cardsByCategory[category].sort();
 
-                    html += '<tr style="border-bottom: 1px solid #333;">';
-                    if (index === 0) {
-                        html += `<td style="padding: 8px;" rowspan="${sortedQtys.length}">${cardName}</td>`;
-                    }
-                    html += `<td style="text-align: center; padding: 8px;">${qty}</td>`;
-                    html += `<td style="text-align: center; padding: 8px;">${percentage}%</td>`;
-                    html += '</tr>';
+                sortedCards.forEach(cardName => {
+                    const quantities = cardData[cardName].quantities;
+                    const sortedQtys = Object.keys(quantities).sort((a, b) => parseInt(b) - parseInt(a));
+
+                    sortedQtys.forEach((qty, index) => {
+                        const count = quantities[qty];
+                        // Calculer le pourcentage par rapport au nombre total de decklists analysées
+                        const percentage = ((count / totalDecklists) * 100).toFixed(0);
+
+                        html += '<tr style="border-bottom: 1px solid #333;">';
+                        if (index === 0) {
+                            html += `<td style="padding: 8px;" rowspan="${sortedQtys.length}">${cardName}</td>`;
+                        }
+                        html += `<td style="text-align: center; padding: 8px;">${qty}</td>`;
+                        html += `<td style="text-align: center; padding: 8px;">${percentage}%</td>`;
+                        html += '</tr>';
+                    });
                 });
+
+                html += '</tbody></table>';
             });
 
-            html += '</tbody></table>';
             resultsDiv.innerHTML = html;
 
             // Générer et afficher la decklist automatique
