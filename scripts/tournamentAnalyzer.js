@@ -250,8 +250,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             if (!autoDecklistDiv) {
                 autoDecklistDiv = document.createElement('div');
                 autoDecklistDiv.id = 'auto-decklist';
-                autoDecklistDiv.style.flex = '1 1 500px';
-                autoDecklistDiv.style.minWidth = '300px';
+                autoDecklistDiv.style.width = '100%';
                 autoDecklistDiv.style.padding = '15px';
                 autoDecklistDiv.style.backgroundColor = '#1a1a1a';
                 autoDecklistDiv.style.border = '1px solid #444';
@@ -362,7 +361,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 flexContainer = document.createElement('div');
                 flexContainer.id = 'tournament-flex-container';
                 flexContainer.style.display = 'flex';
-                flexContainer.style.flexWrap = 'wrap';
+                flexContainer.style.flexDirection = 'column';
                 flexContainer.style.gap = '20px';
                 flexContainer.style.marginTop = '20px';
 
@@ -378,14 +377,11 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             if (!resultsDiv) {
                 resultsDiv = document.createElement('div');
                 resultsDiv.id = 'tournament-results';
-                resultsDiv.style.flex = '1 1 500px';
-                resultsDiv.style.minWidth = '300px';
+                resultsDiv.style.width = '100%';
                 resultsDiv.style.padding = '15px';
                 resultsDiv.style.backgroundColor = '#1a1a1a';
                 resultsDiv.style.border = '1px solid #444';
                 resultsDiv.style.borderRadius = '4px';
-                resultsDiv.style.maxHeight = '500px';
-                resultsDiv.style.overflowY = 'auto';
 
                 flexContainer.appendChild(resultsDiv);
             }
@@ -405,48 +401,48 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
             let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Résultats de l\'analyse</h3>';
 
+            // Utiliser la structure native de Limitless TCG
+            html += '<div class="decklist">';
+
             sortedCategories.forEach(category => {
-                // Afficher le nom de la catégorie
-                html += `<h4 style="color: #2563eb; margin-top: 20px; margin-bottom: 10px;">${category}</h4>`;
-                html += '<table style="width: 100%; color: #f0f0f0; border-collapse: collapse; margin-bottom: 20px;">';
-                html += '<thead><tr style="border-bottom: 2px solid #444;">';
-                html += '<th style="text-align: left; padding: 8px;">Carte</th>';
-                html += '<th style="text-align: center; padding: 8px;">Quantité</th>';
-                html += '<th style="text-align: center; padding: 8px;">Pourcentage</th>';
-                html += '</tr></thead><tbody>';
-
-                // Trier les cartes de la catégorie par nom
+                // Compter le nombre total de lignes dans cette catégorie (une ligne par combinaison carte+quantité)
+                let categoryLineCount = 0;
                 const sortedCards = cardsByCategory[category].sort();
+                sortedCards.forEach(cardName => {
+                    const quantities = cardData[cardName].quantities;
+                    categoryLineCount += Object.keys(quantities).length;
+                });
 
+                // Créer une colonne pour chaque catégorie
+                html += '<div class="column">';
+                html += '<div class="cards">';
+                html += `<div class="heading">${category} (${categoryLineCount})</div>`;
+
+                // Afficher les cartes de cette catégorie
                 sortedCards.forEach(cardName => {
                     const card = cardData[cardName];
                     const quantities = card.quantities;
                     const sortedQtys = Object.keys(quantities).sort((a, b) => parseInt(b) - parseInt(a));
 
-                    sortedQtys.forEach((qty, index) => {
+                    sortedQtys.forEach(qty => {
                         const count = quantities[qty];
                         // Calculer le pourcentage par rapport au nombre total de decklists analysées
                         const percentage = ((count / totalDecklists) * 100).toFixed(0);
 
-                        html += '<tr style="border-bottom: 1px solid #333;">';
-
-                        // Afficher le nom complet avec la quantité appropriée et créer un lien
                         // Nettoyer le fullName pour enlever la quantité d'origine
                         const nameWithoutQty = card.fullName.replace(/^\d+\s+/, '');
                         const cardDisplay = card.href
-                            ? `<a href="${card.href}" target="_blank" style="color: #2563eb; text-decoration: none;">${qty} ${nameWithoutQty}</a>`
+                            ? `<a href="${card.href}" target="_blank">${qty} ${nameWithoutQty}</a>`
                             : `${qty} ${nameWithoutQty}`;
-                        html += `<td style="padding: 8px;">${cardDisplay}</td>`;
-
-                        html += `<td style="text-align: center; padding: 8px;">${qty}</td>`;
-                        html += `<td style="text-align: center; padding: 8px;">${percentage}%</td>`;
-                        html += '</tr>';
+                        html += `<p>${cardDisplay} <span style="color: #888;">(${percentage}%)</span></p>`;
                     });
                 });
 
-                html += '</tbody></table>';
+                html += '</div>'; // Fermer .cards
+                html += '</div>'; // Fermer .column
             });
 
+            html += '</div>'; // Fermer .decklist
             resultsDiv.innerHTML = html;
 
             // Générer et afficher la decklist automatique
