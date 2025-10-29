@@ -1,6 +1,6 @@
 chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
     if (data.tournamentAnalyzerEnabled === false) {
-        console.log('[BetterLimitless] Tournament analyzer script désactivé');
+        console.log('[BetterLimitless] Tournament analyzer script disabled');
         return;
     }
 
@@ -9,72 +9,72 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
         console.log('[BetterLimitless] Tournament analyzer script loaded');
 
-        // Fonction pour parser une page de tournoi et extraire les cartes avec leurs catégories
+        // Function to parse a tournament page and extract cards with their categories
         async function parseTournamentPage(url) {
             try {
-                console.log('[BetterLimitless] Parsing de la page:', url);
+                console.log('[BetterLimitless] Parsing page:', url);
                 const response = await fetch(url);
                 const html = await response.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
 
                 const cardData = {};
-                const cardsInThisTournament = new Set(); // Pour tracker les cartes uniques de ce tournoi
+                const cardsInThisTournament = new Set(); // Track unique cards from this tournament
 
-                // Trouver toutes les div avec la classe "decklist"
+                // Find all divs with class "decklist"
                 const decklistDivs = doc.querySelectorAll('.decklist');
-                console.log('[BetterLimitless] Nombre de decklists trouvées:', decklistDivs.length);
+                console.log('[BetterLimitless] Number of decklists found:', decklistDivs.length);
 
                 decklistDivs.forEach((decklistDiv, index) => {
-                    console.log(`[BetterLimitless] Traitement de la decklist ${index + 1}`);
+                    console.log(`[BetterLimitless] Processing decklist ${index + 1}`);
 
-                    // Parcourir tous les éléments de la decklist pour trouver les catégories et les cartes
+                    // Go through all elements of the decklist to find categories and cards
                     const columns = decklistDiv.querySelectorAll('.column');
 
                     columns.forEach(column => {
-                        // Chercher tous les blocs .cards qui contiennent les catégories et les cartes
+                        // Find all .cards blocks that contain categories and cards
                         const cardsBlocks = column.querySelectorAll('.cards');
 
                         cardsBlocks.forEach(cardsBlock => {
-                            let currentCategory = 'Autre'; // Catégorie par défaut
+                            let currentCategory = 'Other'; // Default category
 
-                            // Chercher le heading à l'intérieur du bloc .cards
+                            // Find the heading inside the .cards block
                             const headingElement = cardsBlock.querySelector('.heading');
 
                             if (headingElement) {
-                                // Extraire le nom de la catégorie sans le nombre entre parenthèses
+                                // Extract category name without the number in parentheses
                                 const headingText = headingElement.textContent.trim();
                                 const categoryMatch = headingText.match(/^(.+?)\s*\(\d+\)$/);
                                 currentCategory = categoryMatch ? categoryMatch[1].trim() : headingText;
-                                console.log(`[BetterLimitless] Catégorie détectée: ${currentCategory}`);
+                                console.log(`[BetterLimitless] Category detected: ${currentCategory}`);
                             }
 
-                            // Traiter les cartes de cette catégorie
+                            // Process cards in this category
                             const links = cardsBlock.querySelectorAll('p a');
 
                             links.forEach(link => {
                                 const text = link.textContent.trim();
                                 const href = link.getAttribute('href');
-                                console.log(`[BetterLimitless] Texte du lien: "${text}" dans catégorie "${currentCategory}"`);
+                                console.log(`[BetterLimitless] Link text: "${text}" in category "${currentCategory}"`);
 
-                                // Format attendu: "Qty Nom (SET-NUM)" ou "Qty Nom"
-                                // Exemples: "4 Dreepy (TWM-128)", "4 Iono PAL 185"
+                                // Expected format: "Qty Name (SET-NUM)" or "Qty Name"
+                                // Examples: "4 Dreepy (TWM-128)", "4 Iono PAL 185"
                                 const match = text.match(/^(\d+)\s+(.+?)(?:\s*\([^)]+\))?$/);
 
                                 if (match) {
                                     const qty = parseInt(match[1]);
                                     let cardName = match[2].trim();
 
-                                    // Extraire le nom complet sans la quantité (inclut la référence)
+                                    // Extract full name without quantity (includes reference)
                                     const fullName = text.replace(/^\d+\s+/, '');
 
-                                    // Enlever les informations de set à la fin si présentes (format: NOM SET NUM)
-                                    // Par exemple: "Iono PAL 185" -> "Iono"
+                                    // Remove set information at the end if present (format: NAME SET NUM)
+                                    // For example: "Iono PAL 185" -> "Iono"
                                     cardName = cardName.replace(/\s+[A-Z]{2,}\s+\d+\s*$/, '');
 
-                                    console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty} [${currentCategory}]`);
+                                    console.log(`[BetterLimitless] Card found: ${cardName} x${qty} [${currentCategory}]`);
 
-                                    cardsInThisTournament.add(cardName); // Ajouter au Set
+                                    cardsInThisTournament.add(cardName); // Add to Set
 
                                     if (!cardData[cardName]) {
                                         cardData[cardName] = {
@@ -97,16 +97,16 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 });
 
                 const totalCards = Object.keys(cardData).length;
-                console.log(`[BetterLimitless] Total de cartes uniques trouvées sur cette page: ${totalCards}`);
-                console.log('[BetterLimitless] Données extraites:', cardData);
+                console.log(`[BetterLimitless] Total unique cards found on this page: ${totalCards}`);
+                console.log('[BetterLimitless] Extracted data:', cardData);
                 return { cardData, cardsInThisTournament, decklistCount: decklistDivs.length };
             } catch (error) {
-                console.error(`[BetterLimitless] Erreur lors du parsing de ${url}:`, error);
+                console.error(`[BetterLimitless] Error parsing ${url}:`, error);
                 return { cardData: {}, cardsInThisTournament: new Set(), decklistCount: 0 };
             }
         }
 
-        // Fonction pour fusionner les données de cartes avec leurs catégories
+        // Function to merge card data with their categories
         function mergeCardData(target, source) {
             for (const cardName in source) {
                 if (!target[cardName]) {
@@ -127,7 +127,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             }
         }
 
-        // Fonction pour analyser tous les tournois
+        // Function to analyze all tournaments
         async function analyzeTournaments() {
             const button = document.getElementById('analyze-tournaments-btn');
             const statusDiv = document.getElementById('tournament-status');
@@ -135,10 +135,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             if (!button || !statusDiv) return;
 
             button.disabled = true;
-            statusDiv.textContent = 'Analyse en cours...';
+            statusDiv.textContent = 'Analysis in progress...';
             statusDiv.style.color = '#ffa500';
 
-            // Récupérer tous les liens vers les tournois qui contiennent un <i> avec la classe "fa-list-alt"
+            // Get all tournament links that contain an <i> with class "fa-list-alt"
             const tournamentLinks = Array.from(document.querySelectorAll('a'))
                 .filter(link => {
                     const href = link.getAttribute('href');
@@ -150,29 +150,29 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                     return href.startsWith('http') ? href : `https://play.limitlesstcg.com${href}`;
                 });
 
-            console.log('[BetterLimitless] Liens de tournois trouvés:', tournamentLinks);
+            console.log('[BetterLimitless] Tournament links found:', tournamentLinks);
 
             if (tournamentLinks.length === 0) {
-                statusDiv.textContent = 'Aucun tournoi trouvé';
+                statusDiv.textContent = 'No tournaments found';
                 statusDiv.style.color = '#ff4444';
                 button.disabled = false;
                 return;
             }
 
-            statusDiv.textContent = `Analyse de ${tournamentLinks.length} tournoi(s)...`;
+            statusDiv.textContent = `Analyzing ${tournamentLinks.length} tournament(s)...`;
 
             const allCardData = {};
-            const cardTournamentCount = {}; // Compte le nombre de tournois où chaque carte apparaît
-            let totalDecklists = 0; // Compte le nombre total de decklists analysées
+            const cardTournamentCount = {}; // Count the number of tournaments where each card appears
+            let totalDecklists = 0; // Count the total number of decklists analyzed
             let processed = 0;
 
-            // Analyser chaque tournoi
+            // Analyze each tournament
             for (const url of tournamentLinks) {
                 const result = await parseTournamentPage(url);
                 mergeCardData(allCardData, result.cardData);
                 totalDecklists += result.decklistCount;
 
-                // Compter les tournois où chaque carte apparaît
+                // Count tournaments where each card appears
                 result.cardsInThisTournament.forEach(cardName => {
                     if (!cardTournamentCount[cardName]) {
                         cardTournamentCount[cardName] = 0;
@@ -181,33 +181,33 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 });
 
                 processed++;
-                statusDiv.textContent = `Analysé ${processed}/${tournamentLinks.length} tournois...`;
+                statusDiv.textContent = `Analyzed ${processed}/${tournamentLinks.length} tournaments...`;
             }
 
-            // Afficher les résultats
+            // Display results
             displayResults(allCardData, cardTournamentCount, totalDecklists);
 
-            statusDiv.textContent = `Analyse terminée : ${tournamentLinks.length} tournoi(s) analysé(s)`;
+            statusDiv.textContent = `Analysis complete: ${tournamentLinks.length} tournament(s) analyzed`;
             statusDiv.style.color = '#44ff44';
             button.disabled = false;
         }
 
-        // Fonction pour distribuer les catégories dans les colonnes de manière équilibrée
+        // Function to distribute categories in columns in a balanced way
         function distributeCategories(categoriesData) {
-            // categoriesData est un tableau de {category, lineCount, html}
-            // Trier par nombre de lignes décroissant (algorithme first-fit decreasing)
+            // categoriesData is an array of {category, lineCount, html}
+            // Sort by decreasing line count (first-fit decreasing algorithm)
             const sortedCategories = [...categoriesData].sort((a, b) => b.lineCount - a.lineCount);
 
-            // Initialiser 3 colonnes
+            // Initialize 3 columns
             const columns = [
                 { categories: [], totalLines: 0 },
                 { categories: [], totalLines: 0 },
                 { categories: [], totalLines: 0 }
             ];
 
-            // Distribuer chaque catégorie dans la colonne qui a le moins de lignes
+            // Distribute each category in the column with the fewest lines
             sortedCategories.forEach(categoryData => {
-                // Trouver la colonne avec le moins de lignes
+                // Find the column with the fewest lines
                 let minColumn = columns[0];
                 for (let i = 1; i < columns.length; i++) {
                     if (columns[i].totalLines < minColumn.totalLines) {
@@ -215,7 +215,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                     }
                 }
 
-                // Ajouter la catégorie à cette colonne
+                // Add the category to this column
                 minColumn.categories.push(categoryData);
                 minColumn.totalLines += categoryData.lineCount;
             });
@@ -223,35 +223,35 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             return columns;
         }
 
-        // Fonction pour générer une decklist automatique avec les cartes >50%, groupée par catégorie
+        // Function to generate an automatic decklist with cards >50%, grouped by category
         function generateAutoDecklist(cardData, totalDecklists) {
             const autoDecklistByCategory = {};
 
-            // Pour chaque carte, trouver la quantité la plus représentée qui dépasse 50%
+            // For each card, find the most represented quantity that exceeds 50%
             for (const cardName in cardData) {
                 const category = cardData[cardName].category;
                 const quantities = cardData[cardName].quantities;
                 let bestQty = null;
                 let bestPercentage = 0;
 
-                // Parcourir toutes les quantités pour cette carte
+                // Go through all quantities for this card
                 for (const qty in quantities) {
                     const count = quantities[qty];
                     const percentage = (count / totalDecklists) * 100;
 
-                    // Garder la quantité avec le pourcentage le plus élevé qui dépasse 50%
+                    // Keep the quantity with the highest percentage that exceeds 50%
                     if (percentage > 50 && percentage > bestPercentage) {
                         bestQty = parseInt(qty);
                         bestPercentage = percentage;
                     }
                 }
 
-                // Si une quantité dépasse 50%, l'ajouter à la decklist
+                // If a quantity exceeds 50%, add it to the decklist
                 if (bestQty !== null) {
                     if (!autoDecklistByCategory[category]) {
                         autoDecklistByCategory[category] = [];
                     }
-                    // Nettoyer le fullName pour enlever la quantité d'origine
+                    // Clean the fullName to remove the original quantity
                     const nameWithoutQty = cardData[cardName].fullName.replace(/^\d+\s+/, '');
                     autoDecklistByCategory[category].push({
                         name: cardName,
@@ -263,7 +263,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 }
             }
 
-            // Trier les cartes dans chaque catégorie par nom
+            // Sort cards in each category by name
             for (const category in autoDecklistByCategory) {
                 autoDecklistByCategory[category].sort((a, b) => a.name.localeCompare(b.name));
             }
@@ -271,9 +271,9 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             return autoDecklistByCategory;
         }
 
-        // Fonction pour afficher la decklist automatique groupée par catégorie
+        // Function to display the automatic decklist grouped by category
         function displayAutoDecklist(autoDecklistByCategory) {
-            // Récupérer le conteneur flex principal
+            // Get the main flex container
             let flexContainer = document.getElementById('tournament-flex-container');
 
             let autoDecklistDiv = document.getElementById('auto-decklist');
@@ -293,42 +293,42 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             }
 
             if (Object.keys(autoDecklistByCategory).length === 0) {
-                autoDecklistDiv.innerHTML = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Decklist automatique</h3>' +
-                    '<p style="color: #ffa500;">Aucune carte ne dépasse 50% de présence dans les decklists analysées.</p>';
+                autoDecklistDiv.innerHTML = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Automatic Decklist</h3>' +
+                    '<p style="color: #ffa500;">No card exceeds 50% presence in the analyzed decklists.</p>';
                 return;
             }
 
-            // Calculer le total de cartes
+            // Calculate total cards
             let totalCards = 0;
             for (const category in autoDecklistByCategory) {
                 totalCards += autoDecklistByCategory[category].reduce((sum, card) => sum + card.quantity, 0);
             }
 
-            // Créer le contenu HTML
-            let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Decklist automatique (cartes >50%)</h3>';
-            html += `<p style="color: #aaa; margin-bottom: 10px;">Total: ${totalCards} cartes</p>`;
+            // Create HTML content
+            let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Automatic Decklist (cards >50%)</h3>';
+            html += `<p style="color: #aaa; margin-bottom: 10px;">Total: ${totalCards} cards</p>`;
 
-            // Bouton pour copier la decklist
-            html += '<button id="copy-decklist-btn" style="background-color: #2563eb; color: #f0f0f0; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-bottom: 15px; font-weight: 500;">Copier la decklist</button>';
+            // Button to copy the decklist
+            html += '<button id="copy-decklist-btn" style="background-color: #2563eb; color: #f0f0f0; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-bottom: 15px; font-weight: 500;">Copy Decklist</button>';
             html += '<span id="copy-status" style="margin-left: 10px; color: #44ff44;"></span>';
 
-            // Préparer les données de chaque catégorie
+            // Prepare data for each category
             const categoriesData = [];
             const sortedCategories = Object.keys(autoDecklistByCategory).sort();
 
             sortedCategories.forEach((category) => {
-                // Calculer le nombre total de cartes dans cette catégorie
+                // Calculate total number of cards in this category
                 const categoryTotal = autoDecklistByCategory[category].reduce((sum, card) => sum + card.quantity, 0);
 
-                // Le nombre de lignes = le nombre de cartes dans cette catégorie
+                // Number of lines = number of cards in this category
                 const categoryLineCount = autoDecklistByCategory[category].length;
 
-                // Construire le HTML pour cette catégorie
+                // Build HTML for this category
                 let categoryHtml = '';
                 categoryHtml += '<div class="cards">';
                 categoryHtml += `<div class="heading">${category} (${categoryTotal})</div>`;
 
-                // Afficher les cartes de cette catégorie
+                // Display cards in this category
                 autoDecklistByCategory[category].forEach(card => {
                     const cardNameDisplay = card.href
                         ? `<a href="${card.href}" target="_blank">${card.quantity} ${card.fullName}</a>`
@@ -336,7 +336,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                     categoryHtml += `<p>${cardNameDisplay} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></p>`;
                 });
 
-                categoryHtml += '</div>'; // Fermer .cards
+                categoryHtml += '</div>'; // Close .cards
 
                 categoriesData.push({
                     category: category,
@@ -345,32 +345,32 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 });
             });
 
-            // Distribuer les catégories dans les colonnes de manière équilibrée
+            // Distribute categories in columns in a balanced way
             const columns = distributeCategories(categoriesData);
 
-            // Utiliser la structure native de Limitless TCG
+            // Use Limitless TCG native structure
             html += '<div class="decklist">';
 
-            // Générer le HTML pour chaque colonne
+            // Generate HTML for each column
             columns.forEach(column => {
                 html += '<div class="column">';
                 column.categories.forEach(categoryData => {
                     html += categoryData.html;
                 });
-                html += '</div>'; // Fermer .column
+                html += '</div>'; // Close .column
             });
 
-            html += '</div>'; // Fermer .decklist
+            html += '</div>'; // Close .decklist
             autoDecklistDiv.innerHTML = html;
 
-            // Ajouter l'événement pour copier la decklist
+            // Add event to copy the decklist
             setTimeout(() => {
                 const copyBtn = document.getElementById('copy-decklist-btn');
                 const copyStatus = document.getElementById('copy-status');
 
                 if (copyBtn) {
                     copyBtn.addEventListener('click', () => {
-                        // Générer le texte de la decklist avec catégories
+                        // Generate decklist text with categories
                         let decklistText = '';
                         const sortedCategories = Object.keys(autoDecklistByCategory).sort();
 
@@ -385,28 +385,28 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                         });
 
                         navigator.clipboard.writeText(decklistText).then(() => {
-                            copyStatus.textContent = 'Copié !';
+                            copyStatus.textContent = 'Copied!';
                             copyStatus.style.color = '#44ff44';
                             setTimeout(() => {
                                 copyStatus.textContent = '';
                             }, 2000);
                         }).catch(err => {
-                            copyStatus.textContent = 'Erreur lors de la copie';
+                            copyStatus.textContent = 'Copy error';
                             copyStatus.style.color = '#ff4444';
-                            console.error('[BetterLimitless] Erreur lors de la copie:', err);
+                            console.error('[BetterLimitless] Copy error:', err);
                         });
                     });
                 }
             }, 0);
         }
 
-        // Fonction pour afficher les résultats groupés par catégorie
+        // Function to display results grouped by category
         function displayResults(cardData, cardTournamentCount, totalDecklists) {
-            console.log('[BetterLimitless] Affichage des résultats avec les données:', cardData);
-            console.log('[BetterLimitless] Nombre de cartes à afficher:', Object.keys(cardData).length);
-            console.log('[BetterLimitless] Total de decklists analysées:', totalDecklists);
+            console.log('[BetterLimitless] Displaying results with data:', cardData);
+            console.log('[BetterLimitless] Number of cards to display:', Object.keys(cardData).length);
+            console.log('[BetterLimitless] Total decklists analyzed:', totalDecklists);
 
-            // Créer ou récupérer le conteneur flex principal
+            // Create or get the main flex container
             let flexContainer = document.getElementById('tournament-flex-container');
 
             if (!flexContainer) {
@@ -423,7 +423,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 }
             }
 
-            // Créer ou récupérer la div de résultats
+            // Create or get the results div
             let resultsDiv = document.getElementById('tournament-results');
 
             if (!resultsDiv) {
@@ -438,7 +438,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 flexContainer.appendChild(resultsDiv);
             }
 
-            // Grouper les cartes par catégorie
+            // Group cards by category
             const cardsByCategory = {};
             for (const cardName in cardData) {
                 const category = cardData[cardName].category;
@@ -448,16 +448,16 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 cardsByCategory[category].push(cardName);
             }
 
-            // Trier les catégories et les cartes
+            // Sort categories and cards
             const sortedCategories = Object.keys(cardsByCategory).sort();
 
-            let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Résultats de l\'analyse</h3>';
+            let html = '<h3 style="color: #f0f0f0; margin-bottom: 15px;">Analysis Results</h3>';
 
-            // Préparer les données de chaque catégorie
+            // Prepare data for each category
             const categoriesData = [];
 
             sortedCategories.forEach(category => {
-                // Compter le nombre total de lignes dans cette catégorie (une ligne par combinaison carte+quantité)
+                // Count total lines in this category (one line per card+quantity combination)
                 let categoryLineCount = 0;
                 const sortedCards = cardsByCategory[category].sort();
                 let categoryHtml = '';
@@ -465,7 +465,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 categoryHtml += '<div class="cards">';
                 categoryHtml += `<div class="heading">${category} (${categoryLineCount})</div>`;
 
-                // Construire le HTML des cartes de cette catégorie
+                // Build HTML for cards in this category
                 sortedCards.forEach(cardName => {
                     const card = cardData[cardName];
                     const quantities = card.quantities;
@@ -475,10 +475,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                         const count = quantities[qty];
                         categoryLineCount++;
 
-                        // Calculer le pourcentage par rapport au nombre total de decklists analysées
+                        // Calculate percentage relative to total number of analyzed decklists
                         const percentage = ((count / totalDecklists) * 100).toFixed(0);
 
-                        // Nettoyer le fullName pour enlever la quantité d'origine
+                        // Clean fullName to remove original quantity
                         const nameWithoutQty = card.fullName.replace(/^\d+\s+/, '');
                         const cardDisplay = card.href
                             ? `<a href="${card.href}" target="_blank">${qty} ${nameWithoutQty}</a>`
@@ -487,9 +487,9 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                     });
                 });
 
-                categoryHtml += '</div>'; // Fermer .cards
+                categoryHtml += '</div>'; // Close .cards
 
-                // Mettre à jour le heading avec le bon compte
+                // Update heading with correct count
                 categoryHtml = categoryHtml.replace(`(${0})`, `(${categoryLineCount})`);
 
                 categoriesData.push({
@@ -499,40 +499,40 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 });
             });
 
-            // Distribuer les catégories dans les colonnes de manière équilibrée
+            // Distribute categories in columns in a balanced way
             const columns = distributeCategories(categoriesData);
 
-            // Utiliser la structure native de Limitless TCG
+            // Use Limitless TCG native structure
             html += '<div class="decklist">';
 
-            // Générer le HTML pour chaque colonne
+            // Generate HTML for each column
             columns.forEach(column => {
                 html += '<div class="column">';
                 column.categories.forEach(categoryData => {
                     html += categoryData.html;
                 });
-                html += '</div>'; // Fermer .column
+                html += '</div>'; // Close .column
             });
 
-            html += '</div>'; // Fermer .decklist
+            html += '</div>'; // Close .decklist
             resultsDiv.innerHTML = html;
 
-            // Générer et afficher la decklist automatique
+            // Generate and display automatic decklist
             const autoDecklist = generateAutoDecklist(cardData, totalDecklists);
             displayAutoDecklist(autoDecklist);
         }
 
-        // Création du bouton d'analyse
+        // Create analysis button
         function createAnalyzeButton() {
-            // Ne pas afficher le bouton si l'URL contient "matchups"
+            // Don't display the button if URL contains "matchups"
             if (window.location.href.includes('matchups')) {
-                console.log('[BetterLimitless] Bouton non affiché car l\'URL contient "matchups"');
+                console.log('[BetterLimitless] Button not displayed because URL contains "matchups"');
                 return;
             }
 
-            // Vérifier si le bouton existe déjà pour éviter les doublons
+            // Check if button already exists to avoid duplicates
             if (document.getElementById('analyze-tournaments-btn')) {
-                console.log('[BetterLimitless] Bouton déjà créé, skip');
+                console.log('[BetterLimitless] Button already created, skipping');
                 return;
             }
 
@@ -544,7 +544,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
             const button = document.createElement('button');
             button.id = 'analyze-tournaments-btn';
-            button.textContent = 'Analyser les decklists';
+            button.textContent = 'Analyze Decklists';
             button.style.backgroundColor = '#2563eb';
             button.style.color = '#f0f0f0';
             button.style.border = 'none';
@@ -581,48 +581,48 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
             }
 
             parentInPage.appendChild(buttonContainer);
-            console.log('[BetterLimitless] Bouton créé avec succès');
+            console.log('[BetterLimitless] Button created successfully');
         }
 
-        // Fonction pour initialiser le bouton de manière robuste
+        // Function to initialize the button robustly
         function initializeButton() {
-            // Essayer de créer le bouton immédiatement
+            // Try to create the button immediately
             const parentInPage = document.querySelector('.player-nav');
             if (parentInPage) {
-                console.log('[BetterLimitless] player-nav trouvé immédiatement');
+                console.log('[BetterLimitless] player-nav found immediately');
                 createAnalyzeButton();
                 return;
             }
 
-            // Si l'élément n'existe pas encore, utiliser un MutationObserver
-            console.log('[BetterLimitless] player-nav non trouvé, utilisation de MutationObserver');
+            // If the element doesn't exist yet, use a MutationObserver
+            console.log('[BetterLimitless] player-nav not found, using MutationObserver');
             const observer = new MutationObserver((mutations, obs) => {
                 const parentInPage = document.querySelector('.player-nav');
                 if (parentInPage) {
-                    console.log('[BetterLimitless] player-nav détecté par MutationObserver');
+                    console.log('[BetterLimitless] player-nav detected by MutationObserver');
                     createAnalyzeButton();
-                    obs.disconnect(); // Arrêter l'observation une fois le bouton créé
+                    obs.disconnect(); // Stop observing once the button is created
                 }
             });
 
-            // Observer les changements dans le DOM
+            // Observe changes in the DOM
             observer.observe(document.body, {
                 childList: true,
                 subtree: true
             });
 
-            // Timeout de sécurité après 10 secondes
+            // Safety timeout after 10 seconds
             setTimeout(() => {
                 observer.disconnect();
-                console.log('[BetterLimitless] MutationObserver arrêté après timeout');
+                console.log('[BetterLimitless] MutationObserver stopped after timeout');
             }, 10000);
         }
 
-        // Démarrer l'initialisation dès que le DOM est prêt
+        // Start initialization as soon as the DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initializeButton);
         } else {
-            // Le DOM est déjà chargé
+            // DOM is already loaded
             initializeButton();
         }
     })();
