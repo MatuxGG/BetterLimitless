@@ -54,6 +54,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                             links.forEach(link => {
                                 const text = link.textContent.trim();
+                                const href = link.getAttribute('href');
                                 console.log(`[BetterLimitless] Texte du lien: "${text}" dans catégorie "${currentCategory}"`);
 
                                 // Format attendu: "Qty Nom (SET-NUM)" ou "Qty Nom"
@@ -63,6 +64,9 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                                 if (match) {
                                     const qty = parseInt(match[1]);
                                     let cardName = match[2].trim();
+
+                                    // Extraire le nom complet sans la quantité (inclut la référence)
+                                    const fullName = text.replace(/^\d+\s+/, '');
 
                                     // Enlever les informations de set à la fin si présentes (format: NOM SET NUM)
                                     // Par exemple: "Iono PAL 185" -> "Iono"
@@ -75,7 +79,9 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                                     if (!cardData[cardName]) {
                                         cardData[cardName] = {
                                             category: currentCategory,
-                                            quantities: {}
+                                            quantities: {},
+                                            fullName: fullName,
+                                            href: href
                                         };
                                     }
 
@@ -106,7 +112,9 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 if (!target[cardName]) {
                     target[cardName] = {
                         category: source[cardName].category,
-                        quantities: {}
+                        quantities: {},
+                        fullName: source[cardName].fullName,
+                        href: source[cardName].href
                     };
                 }
 
@@ -212,8 +220,12 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                     if (!autoDecklistByCategory[category]) {
                         autoDecklistByCategory[category] = [];
                     }
+                    // Nettoyer le fullName pour enlever la quantité d'origine
+                    const nameWithoutQty = cardData[cardName].fullName.replace(/^\d+\s+/, '');
                     autoDecklistByCategory[category].push({
                         name: cardName,
+                        fullName: nameWithoutQty,
+                        href: cardData[cardName].href,
                         quantity: bestQty,
                         percentage: bestPercentage
                     });
@@ -283,7 +295,10 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
 
                 // Afficher les cartes de cette catégorie
                 autoDecklistByCategory[category].forEach(card => {
-                    html += `<div style="color: #f0f0f0; padding: 4px 0;">${card.quantity} ${card.name} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></div>`;
+                    const cardNameDisplay = card.href
+                        ? `<a href="${card.href}" target="_blank" style="color: #2563eb; text-decoration: none;">${card.quantity} ${card.fullName}</a>`
+                        : `${card.quantity} ${card.fullName}`;
+                    html += `<div style="color: #f0f0f0; padding: 4px 0;">${cardNameDisplay} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></div>`;
                 });
             });
 
@@ -307,7 +322,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                             }
                             decklistText += `${category}\n`;
                             autoDecklistByCategory[category].forEach(card => {
-                                decklistText += `${card.quantity} ${card.name}\n`;
+                                decklistText += `${card.quantity} ${card.fullName}\n`;
                             });
                         });
 
@@ -381,7 +396,8 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                 const sortedCards = cardsByCategory[category].sort();
 
                 sortedCards.forEach(cardName => {
-                    const quantities = cardData[cardName].quantities;
+                    const card = cardData[cardName];
+                    const quantities = card.quantities;
                     const sortedQtys = Object.keys(quantities).sort((a, b) => parseInt(b) - parseInt(a));
 
                     sortedQtys.forEach((qty, index) => {
@@ -390,9 +406,15 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                         const percentage = ((count / totalDecklists) * 100).toFixed(0);
 
                         html += '<tr style="border-bottom: 1px solid #333;">';
-                        if (index === 0) {
-                            html += `<td style="padding: 8px;" rowspan="${sortedQtys.length}">${cardName}</td>`;
-                        }
+
+                        // Afficher le nom complet avec la quantité appropriée et créer un lien
+                        // Nettoyer le fullName pour enlever la quantité d'origine
+                        const nameWithoutQty = card.fullName.replace(/^\d+\s+/, '');
+                        const cardDisplay = card.href
+                            ? `<a href="${card.href}" target="_blank" style="color: #2563eb; text-decoration: none;">${qty} ${nameWithoutQty}</a>`
+                            : `${qty} ${nameWithoutQty}`;
+                        html += `<td style="padding: 8px;">${cardDisplay}</td>`;
+
                         html += `<td style="text-align: center; padding: 8px;">${qty}</td>`;
                         html += `<td style="text-align: center; padding: 8px;">${percentage}%</td>`;
                         html += '</tr>';
