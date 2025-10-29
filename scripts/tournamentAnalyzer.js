@@ -32,57 +32,60 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                     const columns = decklistDiv.querySelectorAll('.column');
 
                     columns.forEach(column => {
-                        let currentCategory = 'Autre'; // Catégorie par défaut
+                        // Chercher tous les blocs .cards qui contiennent les catégories et les cartes
+                        const cardsBlocks = column.querySelectorAll('.cards');
 
-                        // Chercher les catégories et les cartes dans l'ordre
-                        const elements = column.querySelectorAll('.heading, .cards');
+                        cardsBlocks.forEach(cardsBlock => {
+                            let currentCategory = 'Autre'; // Catégorie par défaut
 
-                        elements.forEach(element => {
-                            if (element.classList.contains('heading')) {
+                            // Chercher le heading à l'intérieur du bloc .cards
+                            const headingElement = cardsBlock.querySelector('.heading');
+
+                            if (headingElement) {
                                 // Extraire le nom de la catégorie sans le nombre entre parenthèses
-                                const headingText = element.textContent.trim();
+                                const headingText = headingElement.textContent.trim();
                                 const categoryMatch = headingText.match(/^(.+?)\s*\(\d+\)$/);
                                 currentCategory = categoryMatch ? categoryMatch[1].trim() : headingText;
                                 console.log(`[BetterLimitless] Catégorie détectée: ${currentCategory}`);
-                            } else if (element.classList.contains('cards')) {
-                                // Traiter les cartes de cette catégorie
-                                const links = element.querySelectorAll('p a');
-
-                                links.forEach(link => {
-                                    const text = link.textContent.trim();
-                                    console.log(`[BetterLimitless] Texte du lien: "${text}" dans catégorie "${currentCategory}"`);
-
-                                    // Format attendu: "Qty Nom (SET-NUM)" ou "Qty Nom"
-                                    // Exemples: "4 Dreepy (TWM-128)", "4 Iono PAL 185"
-                                    const match = text.match(/^(\d+)\s+(.+?)(?:\s*\([^)]+\))?$/);
-
-                                    if (match) {
-                                        const qty = parseInt(match[1]);
-                                        let cardName = match[2].trim();
-
-                                        // Enlever les informations de set à la fin si présentes (format: NOM SET NUM)
-                                        // Par exemple: "Iono PAL 185" -> "Iono"
-                                        cardName = cardName.replace(/\s+[A-Z]{2,}\s+\d+\s*$/, '');
-
-                                        console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty} [${currentCategory}]`);
-
-                                        cardsInThisTournament.add(cardName); // Ajouter au Set
-
-                                        if (!cardData[cardName]) {
-                                            cardData[cardName] = {
-                                                category: currentCategory,
-                                                quantities: {}
-                                            };
-                                        }
-
-                                        if (!cardData[cardName].quantities[qty]) {
-                                            cardData[cardName].quantities[qty] = 0;
-                                        }
-
-                                        cardData[cardName].quantities[qty]++;
-                                    }
-                                });
                             }
+
+                            // Traiter les cartes de cette catégorie
+                            const links = cardsBlock.querySelectorAll('p a');
+
+                            links.forEach(link => {
+                                const text = link.textContent.trim();
+                                console.log(`[BetterLimitless] Texte du lien: "${text}" dans catégorie "${currentCategory}"`);
+
+                                // Format attendu: "Qty Nom (SET-NUM)" ou "Qty Nom"
+                                // Exemples: "4 Dreepy (TWM-128)", "4 Iono PAL 185"
+                                const match = text.match(/^(\d+)\s+(.+?)(?:\s*\([^)]+\))?$/);
+
+                                if (match) {
+                                    const qty = parseInt(match[1]);
+                                    let cardName = match[2].trim();
+
+                                    // Enlever les informations de set à la fin si présentes (format: NOM SET NUM)
+                                    // Par exemple: "Iono PAL 185" -> "Iono"
+                                    cardName = cardName.replace(/\s+[A-Z]{2,}\s+\d+\s*$/, '');
+
+                                    console.log(`[BetterLimitless] Carte trouvée: ${cardName} x${qty} [${currentCategory}]`);
+
+                                    cardsInThisTournament.add(cardName); // Ajouter au Set
+
+                                    if (!cardData[cardName]) {
+                                        cardData[cardName] = {
+                                            category: currentCategory,
+                                            quantities: {}
+                                        };
+                                    }
+
+                                    if (!cardData[cardName].quantities[qty]) {
+                                        cardData[cardName].quantities[qty] = 0;
+                                    }
+
+                                    cardData[cardName].quantities[qty]++;
+                                }
+                            });
                         });
                     });
                 });
