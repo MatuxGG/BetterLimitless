@@ -333,7 +333,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                     const cardNameDisplay = card.href
                         ? `<a href="${card.href}" target="_blank">${card.quantity} ${card.fullName}</a>`
                         : `${card.quantity} ${card.fullName}`;
-                    categoryHtml += `<p>${cardNameDisplay} <span style="color: #888;">(${card.percentage.toFixed(0)}%)</span></p>`;
+                    categoryHtml += `<p style='display: flex; justify-content: space-between; align-items: center'>${cardNameDisplay} <span style="color: #888;">${card.percentage.toFixed(0)}%</span></p>`;
                 });
 
                 categoryHtml += '</div>'; // Close .cards
@@ -483,7 +483,7 @@ chrome.storage?.sync.get('tournamentAnalyzerEnabled', (data) => {
                         const cardDisplay = card.href
                             ? `<a href="${card.href}" target="_blank">${qty} ${nameWithoutQty}</a>`
                             : `${qty} ${nameWithoutQty}`;
-                        categoryHtml += `<p>${cardDisplay} <span style="color: #888;">(${percentage}%)</span></p>`;
+                        categoryHtml += `<p style='display: flex; justify-content: space-between; align-items: center'>${cardDisplay} <span style="color: #888;">${percentage}%</span></p>`;
                     });
                 });
 
